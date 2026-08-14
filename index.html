@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Homshotel-manager - Connexion</title>
+  
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Tailwind CSS pour un design mobile moderne -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    /* Empêche le zoom intempestif sur mobile */
+    input, button { touch-action: manipulation; }
+  </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-center items-center p-4">
+
+  <!-- Carte de Connexion -->
+  <div class="w-full max-w-sm bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-700">
+    
+    <!-- En-tête -->
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-500/30">
+        <span class="text-2xl font-black tracking-wider">HM</span>
+      </div>
+      <h1 class="text-xl font-bold text-slate-100">Homshotel-manager</h1>
+      <p class="text-xs text-slate-400 mt-1">Espace d'identification du personnel</p>
+    </div>
+
+    <!-- Formulaire d'identification -->
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1 font-medium">Email identifiant</label>
+        <input type="email" id="email" required placeholder="ex: reception@hotel.com" 
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1 font-medium">Mot de passe</label>
+        <input type="password" id="password" required placeholder="••••••••" 
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1 font-medium">Code PIN (4 chiffres)</label>
+        <input type="password" id="pin" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" required placeholder="1234" 
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-center text-lg tracking-[0.5em] font-bold focus:outline-none focus:border-blue-500 text-blue-400">
+      </div>
+
+      <button type="submit" id="submitBtn" 
+        class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-blue-600/20 mt-2">
+        Se connecter
+      </button>
+    </form>
+
+    <!-- Zone de message d'erreur / succès -->
+    <div id="statusMessage" class="mt-4 text-center text-xs hidden"></div>
+
+  </div>
+
+  <!-- Script d'interconnexion Supabase -->
+  <script>
+    // Configuration Supabase
+    const SUPABASE_URL = 'https://vpodhchglchdyzovgbie.supabase.co';
+    const SUPABASE_KEY = 'Sb_publishable_AvL5SBgzKRphsWYgRilW0g_rBUc6HqF';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const loginForm = document.getElementById('loginForm');
+    const statusMessage = document.getElementById('statusMessage');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Gestion de la soumission
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const pin = document.getElementById('pin').value;
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Vérification en cours...';
+      statusMessage.classList.add('hidden');
+
+      try {
+        // 1. Authentification Supabase Auth
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+
+        if (error) throw error;
+
+        // 2. Vérification du profil et du Code PIN dans la table profiles
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          throw new Error('Profil utilisateur introuvable dans la base.');
+        }
+
+        if (profile.pin_code !== pin) {
+          throw new Error('Code PIN incorrect.');
+        }
+
+        // Succès !
+        statusMessage.className = 'mt-4 text-center text-xs text-emerald-400 font-medium';
+        statusMessage.innerText = `Bienvenue ${profile.nom} ! Connexion réussie...`;
+        statusMessage.classList.remove('hidden');
+
+        // Sauvegarde de la session locale et redirection vers le dashboard (Écran 02)
+        localStorage.setItem('user_profile', JSON.stringify(profile));
+        
+        setTimeout(() => {
+          window.location.href = 'dashboard.html';
+        }, 1500);
+
+      } catch (err) {
+        statusMessage.className = 'mt-4 text-center text-xs text-rose-400 font-medium';
+        statusMessage.innerText = err.message || 'Identifiants incorrects.';
+        statusMessage.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Se connecter';
+      }
+    });
+  </script>
+</body>
+</html>
